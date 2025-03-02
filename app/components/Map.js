@@ -1,5 +1,5 @@
 import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import RepairMenu from "./RepairMenu";
 
 const containerStyle = {
@@ -7,88 +7,88 @@ const containerStyle = {
   height: "100vh",
 };
 
-const center = {
+const defaultCenter = {
   lat: 37.7749, // Default center (San Francisco)
   lng: -122.4194,
 };
 
 export default function Map() {
   const { isLoaded } = useJsApiLoader({
-  id: "google-map-script",
-  googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-  libraries: ["places"], // Add additional libraries here
-});
+    id: "google-map-script",
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    libraries: ["places", "geocoding"], // Add Geocoding library
+  });
 
   const [menuPosition, setMenuPosition] = useState(null);
+  const [address, setAddress] = useState(""); // State for the address
+  const [center, setCenter] = useState(defaultCenter); // State for map center
   const longPressTimer = useRef(null);
-  const closeMenuTimer = useRef(null);
 
-  // Handle mouse/touch start (long press initiation)
-  const handleStart = (event) => {
-    // Prevent default behavior for touch events
-    if (event.touches) {
-      event.preventDefault();
+  // Get the device's location
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setCenter({ lat: latitude, lng: longitude }); // Update center to device location
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+        }
+      );
+    } else {
+      console.error("Geolocation is not supported by this browser.");
     }
+  }, []);
 
-    // Get the coordinates from the event
+  // Fetch the address using Geocoding API
+  const fetchAddress = async (lat, lng) => {
+    try {
+      const geocoder = new window.google.maps.Geocoder();
+      const response = await geocoder.geocode({ location: { lat, lng } });
+      if (response.results[0]) {
+        setAddress(response.results[0].formatted_address); // Set the address
+      } else {
+        setAddress("Address not found");
+      }
+    } catch (error) {
+      console.error("Error fetching address:", error);
+      setAddress("Error fetching address");
+    }
+  };
+
+  // Handle long press
+  const handleLongPress = (event) => {
     const latLng = event.latLng || event.touches[0].latLng;
-
-    // Log the coordinates to verify they're correct
-    console.log("Long Press Coordinates:", latLng);
-
-    // Start a timer to detect a long press (0.5 seconds)
     longPressTimer.current = setTimeout(() => {
       setMenuPosition({ lat: latLng.lat(), lng: latLng.lng() });
+      fetchAddress(latLng.lat(), latLng.lng()); // Fetch address for the pinned location
     }, 500); // 0.5-second delay for long press
   };
 
-  // Handle mouse/touch end (cancel long press)
-  const handleEnd = () => {
+  // Cancel long press
+  const cancelLongPress = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
   };
 
-  // Handle mouse/touch start for closing the menu
-  const handleCloseMenuStart = (event) => {
-    if (menuPosition) {
-      // Start a timer to close the menu (0.3 seconds)
-      closeMenuTimer.current = setTimeout(() => {
-        setMenuPosition(null);
-      }, 300); // 0.3-second delay to close the menu
-    }
-  };
-
-  // Handle mouse/touch end for closing the menu
-  const handleCloseMenuEnd = () => {
-    if (closeMenuTimer.current) {
-      clearTimeout(closeMenuTimer.current);
-      closeMenuTimer.current = null;
-    }
-  };
-
   return isLoaded ? (
     <GoogleMap
       mapContainerStyle={containerStyle}
-      center={center}
-      zoom={12}
+      center={center} // Use device location as center
+      zoom={15} // Zoom level for better visibility
       onClick={() => setMenuPosition(null)} // Close menu on map click
-      onMouseDown={handleStart} // Start long press detection (mouse)
-      onMouseUp={handleEnd} // Cancel long press detection (mouse)
-      onTouchStart={(event) => {
-        if (menuPosition) {
-          handleCloseMenuStart(event); // Start close menu timer
-        } else {
-          handleStart(event); // Start long press timer
-        }
-      }}
-      onTouchEnd={handleCloseMenuEnd} // Cancel close menu timer
+      onMouseDown={handleLongPress} // Start long press detection (mouse)
+      onMouseUp={cancelLongPress} // Cancel long press detection (mouse)
+      onTouchStart={handleLongPress} // Start long press detection (touch)
+      onTouchEnd={cancelLongPress} // Cancel long press detection (touch)
     >
       {menuPosition && (
         <>
           <Marker position={menuPosition} />
-          <RepairMenu position={menuPosition} />
+          <RepairMenu position={menuPosition} address={address} /> {/* Pass address to RepairMenu */}
         </>
       )}
     </GoogleMap>
