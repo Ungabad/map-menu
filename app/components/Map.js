@@ -14,9 +14,10 @@ const center = {
 
 export default function Map() {
   const { isLoaded } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-  });
+  id: "google-map-script",
+  googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+  libraries: ["places"], // Add additional libraries here
+});
 
   const [menuPosition, setMenuPosition] = useState(null);
   const longPressTimer = useRef(null);
@@ -31,6 +32,9 @@ export default function Map() {
 
     // Get the coordinates from the event
     const latLng = event.latLng || event.touches[0].latLng;
+
+    // Log the coordinates to verify they're correct
+    console.log("Long Press Coordinates:", latLng);
 
     // Start a timer to detect a long press (0.5 seconds)
     longPressTimer.current = setTimeout(() => {

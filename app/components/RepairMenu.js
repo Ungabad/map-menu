@@ -9,6 +9,9 @@ export default function RepairMenu({ position }) {
     gutters: false,
   });
 
+  // Log the position to verify it's being passed correctly
+  console.log("Menu Position:", position);
+
   const handleCheckboxChange = (component) => {
     setSelectedComponents((prev) => ({
       ...prev,
@@ -20,29 +23,21 @@ export default function RepairMenu({ position }) {
     <>
       {/* Transparent background */}
       <div
-        className="fixed inset-0 bg-black opacity-45"
-        style={{ zIndex: 1000 }}
+        className="fixed inset-0 bg-black opacity-45 z-50"
+        onClick={() => setMenuPosition(null)} // Close menu on background click
       ></div>
 
       {/* Menu container */}
       <div
-        className="absolute bg-white p-4 rounded-lg shadow-lg flex flex-col space-y-2"
+        className="absolute bg-white p-4 rounded-lg shadow-lg flex flex-col space-y-2 z-50"
         style={{
-          left: `${position.lng}px`,
+          left: `${position.lng + 20}px`, // Position to the right of the pin
           top: `${position.lat}px`,
-          transform: `translate(10px, -50%)`, // Position to the right of the pin
-          zIndex: 1001,
         }}
       >
         <h2 className="text-lg font-bold mb-2">Select Components to Repair</h2>
-        {Object.keys(selectedComponents).map((component, index) => (
-          <label
-            key={component}
-            className="flex items-center space-x-2"
-            style={{
-              marginLeft: index === 0 ? "20px" : "0", // First item to the right
-            }}
-          >
+        {Object.keys(selectedComponents).map((component) => (
+          <label key={component} className="flex items-center space-x-2">
             <input
               type="checkbox"
               checked={selectedComponents[component]}
